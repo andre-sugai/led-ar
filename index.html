@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Experiência AR Orbee 360</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      .logo-container {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+      }
+      .logo-container img {
+        height: 40px;
+        width: auto;
+        display: block;
+        opacity: 0.8;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Logo no canto inferior direito -->
+    <a
+      href="https://bio.link/orbee360"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="logo-container"
+    >
+      <img src="./orbee360.png" alt="Logo Orbee 360" />
+    </a>
+
+    <!-- Cena MindAR com configurações de estabilidade -->
+    <a-scene
+      mindar-image="
+        imageTargetSrc: ./targets.mind;
+        smoothCount: 5;
+        smoothTolerance: 0.01;
+        smoothThreshold: 5;
+        missTolerance: 5;
+        warmupTolerance: 5;
+      "
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+    >
+      <!-- 1. "DESPENSA": Carregamos a sua foto 360° -->
+      <a-assets>
+        <img id="fotosfera-img" src="./tour.webp" />
+      </a-assets>
+
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+      <!-- 2. "PALCO": O conteúdo que aparece sobre o cartão -->
+      <a-entity mindar-image-target="targetIndex: 0">
+        <!-- 
+          3. A FOTOSFERA FLUTUANTE:
+          Esta é a nossa esfera 3D.
+          - src="#fotosfera-img": Aplica sua imagem 360° na superfície da esfera.
+          - radius="0.4": Define o tamanho da esfera (reduzido para maior estabilidade).
+          - position="0 0.3 0.8": Posição mais próxima e estável.
+          - animation: Faz a esfera girar lentamente sobre o eixo Y.
+        -->
+        <a-sphere
+          src="#fotosfera-img"
+          radius="0.4"
+          position="0 1 0"
+          rotation="0 0 0"
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 30000; easing: easeInOutQuad;"
+          stabilizer
+        ></a-sphere>
+
+        <!-- 
+          4. O TEXTO 3D (Opcional):
+          Um texto que flutua abaixo da esfera.
+        -->
+        <a-text
+          value="Veja nosso trabalho em 360 graus"
+          color="#FFFFFF"
+          align="center"
+          position="0 -0.2 0"
+          scale="0.3 0.3 0.3"
+          stabilizer
+        ></a-text>
+      </a-entity>
+    </a-scene>
+
+    <!-- Script de estabilização personalizado -->
+    <script>
+      /**
+       * Componente de estabilização para reduzir tremor em objetos AR
+       * @description Aplica suavização de movimento aos objetos para reduzir tremores
+       * @param {number} smoothingFactor - Fator de suavização (0.1 = mais suave, 0.9 = mais responsivo)
+       * @param {boolean} stabilizePosition - Se deve estabilizar a posição
+       * @param {boolean} stabilizeRotation - Se deve estabilizar a rotação
+       */
+      AFRAME.registerComponent('stabilizer', {
+        schema: {
+          smoothingFactor: { type: 'number', default: 0.15 },
+          stabilizePosition: { type: 'boolean', default: true },
+          stabilizeRotation: { type: 'boolean', default: false },
+        },
+
+        init: function () {
+          // Inicializa as posições e rotações anteriores
+          this.lastPosition = new THREE.Vector3();
+          this.lastRotation = new THREE.Euler();
+
+          // Obtém a posição e rotação iniciais
+          const obj3D = this.el.object3D;
+          this.lastPosition.copy(obj3D.position);
+          this.lastRotation.copy(obj3D.rotation);
+
+          // Flag para controlar se já foi inicializado
+          this.initialized = false;
+        },
+
+        tick: function () {
+          const obj3D = this.el.object3D;
+          const smoothingFactor = this.data.smoothingFactor;
+
+          // Estabilização de posição
+          if (this.data.stabilizePosition) {
+            const currentPosition = obj3D.position.clone();
+            const smoothedPosition = new THREE.Vector3();
+
+            // Aplica interpolação linear para suavizar o movimento
+            smoothedPosition.lerpVectors(
+              this.lastPosition,
+              currentPosition,
+              smoothingFactor
+            );
+
+            // Atualiza a posição do objeto
+            obj3D.position.copy(smoothedPosition);
+            this.lastPosition.copy(smoothedPosition);
+          }
+
+          // Estabilização de rotação (opcional)
+          if (this.data.stabilizeRotation) {
+            const currentRotation = obj3D.rotation.clone();
+            const smoothedRotation = new THREE.Euler();
+
+            // Suaviza a rotação
+            smoothedRotation.x = THREE.MathUtils.lerp(
+              this.lastRotation.x,
+              currentRotation.x,
+              smoothingFactor
+            );
+            smoothedRotation.y = THREE.MathUtils.lerp(
+              this.lastRotation.y,
+              currentRotation.y,
+              smoothingFactor
+            );
+            smoothedRotation.z = THREE.MathUtils.lerp(
+              this.lastRotation.z,
+              currentRotation.z,
+              smoothingFactor
+            );
+
+            obj3D.rotation.copy(smoothedRotation);
+            this.lastRotation.copy(smoothedRotation);
+          }
+        },
+      });
+    </script>
+  </body>
+</html>
