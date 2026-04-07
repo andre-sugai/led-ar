@@ -1,233 +1,33 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Experiência AR Orbee 360</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-
-    <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-      }
-      .logo-container {
-        position: absolute;
-        bottom: 20px;
-        right: 20px;
-        z-index: 9999;
-      }
-      .logo-container img {
-        height: 40px;
-        width: auto;
-        display: block;
-        opacity: 0.8;
-      }
-    </style>
-  </head>
-
-  <body>
-    <!-- Logo no canto inferior direito -->
-    <a
-      href="https://bio.link/orbee360"
-      target="_blank"
-      rel="noopener noreferrer"
-      class="logo-container"
-    >
-      <img src="./orbee360.png" alt="Logo Orbee 360" />
-    </a>
-
-    <!-- Cena MindAR com configurações de estabilidade -->
-    <a-scene
-      mindar-image="
-        imageTargetSrc: ./targets.mind;
-        smoothCount: 5;
-        smoothTolerance: 0.01;
-        smoothThreshold: 5;
-        missTolerance: 5;
-        warmupTolerance: 5;
-      "
-      vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false"
-    >
-      <!-- 1. "DESPENSA": Carregamos a sua foto 360° e os áudios -->
-      <a-assets>
-        <img id="fotosfera-img" src="./tour.webp" />
-        <audio id="audio1" src="./1.mp3" preload="auto"></audio>
-        <audio id="audio2" src="./2.mp3" preload="auto"></audio>
-        <audio id="audio3" src="./3.mp3" preload="auto"></audio>
-        <audio id="audio4" src="./4.mp3" preload="auto"></audio>
-        <audio id="audio5" src="./5.mp3" preload="auto"></audio>
-      </a-assets>
-
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-
-      <!-- 2. "PALCO": O conteúdo que aparece sobre o cartão -->
-      <a-entity mindar-image-target="targetIndex: 0">
-        <!-- 
-          3. O POSTER PLANO:
-          Este é um plano 2D que exibe a imagem como um poster.
-          - src="#fotosfera-img": Aplica sua imagem no plano.
-          - width="1.6" height="1.2": Dimensões do poster (proporção 4:3, ajuste conforme sua imagem).
-          - position="0 0 0": Centralizado sobre o alvo detectado.
-          - rotation="0 0 0": Orientação padrão (voltado para a câmera).
-        -->
-        <a-plane
-          src="#fotosfera-img"
-          width="0.9"
-          height="1.6"
-          position="0 0 0"
-          rotation="0 0 0"
-          stabilizer
-        ></a-plane>
-
-        <!-- 
-          4. O TEXTO 3D (Opcional):
-          Um texto que flutua abaixo do poster.
-        -->
-        <a-text
-          value="Veja nosso trabalho"
-          color="#FFFFFF"
-          align="center"
-          position="0 -0.7 0"
-          scale="0.4 0.4 0.4"
-          stabilizer
-        ></a-text>
-      </a-entity>
-    </a-scene>
-
-    <!-- Script de estabilização personalizado -->
-    <script>
-      /**
-       * Componente de estabilização para reduzir tremor em objetos AR
-       * @description Aplica suavização de movimento aos objetos para reduzir tremores
-       * @param {number} smoothingFactor - Fator de suavização (0.1 = mais suave, 0.9 = mais responsivo)
-       * @param {boolean} stabilizePosition - Se deve estabilizar a posição
-       * @param {boolean} stabilizeRotation - Se deve estabilizar a rotação
-       */
-      AFRAME.registerComponent('stabilizer', {
-        schema: {
-          smoothingFactor: { type: 'number', default: 0.15 },
-          stabilizePosition: { type: 'boolean', default: true },
-          stabilizeRotation: { type: 'boolean', default: false },
-        },
-
-        init: function () {
-          // Inicializa as posições e rotações anteriores
-          this.lastPosition = new THREE.Vector3();
-          this.lastRotation = new THREE.Euler();
-
-          // Obtém a posição e rotação iniciais
-          const obj3D = this.el.object3D;
-          this.lastPosition.copy(obj3D.position);
-          this.lastRotation.copy(obj3D.rotation);
-
-          // Flag para controlar se já foi inicializado
-          this.initialized = false;
-        },
-
-        tick: function () {
-          const obj3D = this.el.object3D;
-          const smoothingFactor = this.data.smoothingFactor;
-
-          // Estabilização de posição
-          if (this.data.stabilizePosition) {
-            const currentPosition = obj3D.position.clone();
-            const smoothedPosition = new THREE.Vector3();
-
-            // Aplica interpolação linear para suavizar o movimento
-            smoothedPosition.lerpVectors(
-              this.lastPosition,
-              currentPosition,
-              smoothingFactor
-            );
-
-            // Atualiza a posição do objeto
-            obj3D.position.copy(smoothedPosition);
-            this.lastPosition.copy(smoothedPosition);
-          }
-
-          // Estabilização de rotação (opcional)
-          if (this.data.stabilizeRotation) {
-            const currentRotation = obj3D.rotation.clone();
-            const smoothedRotation = new THREE.Euler();
-
-            // Suaviza a rotação
-            smoothedRotation.x = THREE.MathUtils.lerp(
-              this.lastRotation.x,
-              currentRotation.x,
-              smoothingFactor
-            );
-            smoothedRotation.y = THREE.MathUtils.lerp(
-              this.lastRotation.y,
-              currentRotation.y,
-              smoothingFactor
-            );
-            smoothedRotation.z = THREE.MathUtils.lerp(
-              this.lastRotation.z,
-              currentRotation.z,
-              smoothingFactor
-            );
-
-            obj3D.rotation.copy(smoothedRotation);
-            this.lastRotation.copy(smoothedRotation);
-          }
-        },
-      });
-
-      /**
-       * Sistema de áudio randômico
-       * Toca um dos 3 arquivos MP3 aleatoriamente quando a imagem é detectada
-       */
-      document.addEventListener('DOMContentLoaded', function () {
-        const sceneEl = document.querySelector('a-scene');
-        let currentAudio = null;
-        let hasPlayed = false;
-
-        sceneEl.addEventListener('loaded', function () {
-          const target = document.querySelector('[mindar-image-target]');
-
-          // Quando a imagem é detectada
-          target.addEventListener('targetFound', function () {
-            // Só toca uma vez por sessão
-            if (!hasPlayed) {
-              playRandomAudio();
-              hasPlayed = true;
-            }
-          });
-
-          // Quando a imagem é perdida
-          target.addEventListener('targetLost', function () {
-            // Para o áudio quando perde a imagem
-            if (currentAudio) {
-              currentAudio.pause();
-              currentAudio.currentTime = 0;
-            }
-            // Reseta para permitir nova reprodução na próxima detecção
-            hasPlayed = false;
-          });
-        });
-
-        function playRandomAudio() {
-          // Para qualquer áudio que esteja tocando
-          if (currentAudio) {
-            currentAudio.pause();
-            currentAudio.currentTime = 0;
-          }
-
-          // Seleciona um áudio aleatório (1, 2, 3, 4 ou 5)
-          const randomIndex = Math.floor(Math.random() * 5) + 1;
-          currentAudio = document.getElementById('audio' + randomIndex);
-
-          // Toca o áudio selecionado
-          if (currentAudio) {
-            currentAudio.play().catch(function (error) {
-              console.log('Erro ao reproduzir áudio:', error);
-              // Em alguns navegadores, é necessário interação do usuário primeiro
-            });
-          }
-        }
-      });
-    </script>
-  </body>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Menu interativo Led Zeppelin - Playlist e Pôster do Dia">
+    <title>Led Zeppelin | Menu</title>
+    <link rel="stylesheet" href="index.css">
+    
+    <!-- Google Fonts for typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&family=Uncial+Antiqua&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="video-background-fallback"></div>
+    <div class="overlay"></div>
+    
+    <main class="container centered-container">
+        
+        <div class="buttons-container">
+            <a href="https://music.youtube.com/channel/UCaKZA66vM_TUpetUNohmR0A" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                <span class="btn-content">Playlist</span>
+            </a>
+            <button class="btn btn-secondary">
+                <a href="https://music.youtube.com/channel/UCaKZA66vM_TUpetUNohmR0A" target="_blank" rel="noopener noreferrer" class="btn btn-primary"></a>
+                <span class="btn-content">Pôster do Dia</span>
+            </a>
+            </button>
+        </div>
+    </main>
+</body>
 </html>
